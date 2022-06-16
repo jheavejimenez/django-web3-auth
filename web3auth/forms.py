@@ -18,11 +18,13 @@ class LoginForm(forms.Form):
 
     def clean_signature(self):
         sig = self.cleaned_data['signature']
-        if any([
-            len(sig) != 132,
-            sig[130:] != '1b' and sig[130:] != '1c',
-            not all(c in string.hexdigits for c in sig[2:])
-        ]):
+        if any(
+            [
+                len(sig) != 132,
+                sig[130:] not in ['1b', '1c'],
+                any(c not in string.hexdigits for c in sig[2:]),
+            ]
+        ):
             raise forms.ValidationError(_('Invalid signature'))
         return sig
 
@@ -53,4 +55,8 @@ class SignupForm(forms.ModelForm):
 
 
 # hack to set the method for cleaning address field
-setattr(SignupForm, 'clean_' + app_settings.WEB3AUTH_USER_ADDRESS_FIELD, SignupForm.clean_address_field)
+setattr(
+    SignupForm,
+    f'clean_{app_settings.WEB3AUTH_USER_ADDRESS_FIELD}',
+    SignupForm.clean_address_field,
+)
