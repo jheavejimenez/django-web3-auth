@@ -20,17 +20,19 @@ from django.views.generic import RedirectView
 
 
 def login(request):
-    if not request.user.is_authenticated:
-        return render(request, 'web3auth/login.html')
-    else:
-        return redirect('/admin/login')
+    return (
+        redirect('/admin/login')
+        if request.user.is_authenticated
+        else render(request, 'web3auth/login.html')
+    )
 
 
 def auto_login(request):
-    if not request.user.is_authenticated:
-        return render(request, 'web3auth/autologin.html')
-    else:
-        return redirect('/admin/login')
+    return (
+        redirect('/admin/login')
+        if request.user.is_authenticated
+        else render(request, 'web3auth/autologin.html')
+    )
 
 
 urlpatterns = [

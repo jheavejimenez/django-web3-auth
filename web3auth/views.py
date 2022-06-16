@@ -30,31 +30,35 @@ def get_redirect_url(request):
 @require_http_methods(["GET", "POST"])
 def login_api(request):
     if request.method == 'GET':
-        token = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for i in range(32))
+        token = ''.join(
+            random.SystemRandom().choice(
+                string.ascii_uppercase + string.digits
+            )
+            for _ in range(32)
+        )
+
         request.session['login_token'] = token
         return JsonResponse({'data': token, 'success': True})
     else:
-        token = request.session.get('login_token')
-        if not token:
+        if not (token := request.session.get('login_token')):
             return JsonResponse({'error': _(
                 "No login token in session, please request token again by sending GET request to this url"),
                 'success': False})
-        else:
-            form = LoginForm(token, request.POST)
-            if form.is_valid():
-                signature, address = form.cleaned_data.get("signature"), form.cleaned_data.get("address")
-                del request.session['login_token']
-                user = authenticate(request, token=token, address=address, signature=signature)
-                if user:
-                    login(request, user, 'web3auth.backend.Web3Backend')
+        form = LoginForm(token, request.POST)
+        if not form.is_valid():
+            return JsonResponse({'success': False, 'error': json.loads(form.errors.as_json())})
+        signature, address = form.cleaned_data.get("signature"), form.cleaned_data.get("address")
+        del request.session['login_token']
+        if user := authenticate(
+            request, token=token, address=address, signature=signature
+        ):
+            login(request, user, 'web3auth.backend.Web3Backend')
 
-                    return JsonResponse({'success': True, 'redirect_url': get_redirect_url(request)})
-                else:
-                    error = _("Can't find a user for the provided signature with address {address}").format(
-                        address=address)
-                    return JsonResponse({'success': False, 'error': error})
-            else:
-                return JsonResponse({'success': False, 'error': json.loads(form.errors.as_json())})
+            return JsonResponse({'success': True, 'redirect_url': get_redirect_url(request)})
+        else:
+            error = _("Can't find a user for the provided signature with address {address}").format(
+                address=address)
+            return JsonResponse({'success': False, 'error': error})
 
 
 @require_http_methods(["POST"])
@@ -62,15 +66,14 @@ def signup_api(request):
     if not app_settings.WEB3AUTH_SIGNUP_ENABLED:
         return JsonResponse({'success': False, 'error': _("Sorry, signup's are currently disabled")})
     form = SignupForm(request.POST)
-    if form.is_valid():
-        user = form.save(commit=False)
-        addr_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
-        setattr(user, addr_field, form.cleaned_data[addr_field])
-        user.save()
-        login(request, user, 'web3auth.backend.Web3Backend')
-        return JsonResponse({'success': True, 'redirect_url': get_redirect_url(request)})
-    else:
+    if not form.is_valid():
         return JsonResponse({'success': False, 'error': json.loads(form.errors.as_json())})
+    user = form.save(commit=False)
+    addr_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
+    setattr(user, addr_field, form.cleaned_data[addr_field])
+    user.save()
+    login(request, user, 'web3auth.backend.Web3Backend')
+    return JsonResponse({'success': True, 'redirect_url': get_redirect_url(request)})
 
 
 @require_http_methods(["GET", "POST"])
@@ -90,16 +93,15 @@ def signup_view(request, template_name='web3auth/signup.html'):
     form = SignupForm()
     if not app_settings.WEB3AUTH_SIGNUP_ENABLED:
         form.add_error(None, _("Sorry, signup's are currently disabled"))
-    else:
-        if request.method == 'POST':
-            form = SignupForm(request.POST)
-            if form.is_valid():
-                user = form.save(commit=False)
-                addr_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
-                setattr(user, addr_field, form.cleaned_data[addr_field])
-                user.save()
-                login(request, user, 'web3auth.backend.Web3Backend')
-                return redirect(get_redirect_url(request))
+    elif request.method == 'POST':
+        form = SignupForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            addr_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
+            setattr(user, addr_field, form.cleaned_data[addr_field])
+            user.save()
+            login(request, user, 'web3auth.backend.Web3Backend')
+            return redirect(get_redirect_url(request))
     return render(request,
                   template_name,
                   {'form': form})

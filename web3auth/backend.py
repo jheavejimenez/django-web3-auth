@@ -8,15 +8,11 @@ class Web3Backend(backends.ModelBackend):
     def authenticate(self, request, address=None, token=None, signature=None):
         # get user model
         User = get_user_model()
-        # check if the address the user has provided matches the signature
-        if not address == recover_to_addr(token, signature):
+        if address != recover_to_addr(token, signature):
             return None
-        else:
-            # get address field for the user model
-            address_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
-            kwargs = {
-                f"{address_field}__iexact": address
-            }
-            # try to get user with provided data
-            user = User.objects.filter(**kwargs).first()
-            return user
+        # get address field for the user model
+        address_field = app_settings.WEB3AUTH_USER_ADDRESS_FIELD
+        kwargs = {
+            f"{address_field}__iexact": address
+        }
+        return User.objects.filter(**kwargs).first()
